@@ -1,2 +1,2 @@
 # calciumfMRI
-Collection of LabView &amp; Matlab tools for simultaneous calcium &amp; fMRI measurements
+Collection of LabView, Matlab & AFNI tools for simultaneous calcium &amp; fMRI measurements
