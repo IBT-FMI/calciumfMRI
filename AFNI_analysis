@@ -1,0 +1,50 @@
+#!/bin/tcsh -xef
+
+# Simplified AFNI analysis script for the use with calcium regressor time courses.
+# Name of the MR file (in AFNI .brik format) required as input argument
+# Felix Schlegel 2017
+
+
+set subj = $argv[1]
+set output_dir = $subj.results
+mkdir $output_dir
+
+
+# define your calcium regressor file here:
+set deconv_stim_times = ~/yourdatafolder/alcium_regressor_married.1D  
+
+
+### preprocessing ###
+
+3dTcat -prefix $output_dir/pb00.$subj.tcat $subj+orig'[20..$]'
+
+cd $output_dir
+
+# motion correction
+3dvolreg -prefix pb01.$subj.volreg -Fourier -zpad 1 -tshift 0 -1Dfile dfile.1D pb00.$subj.tcat+orig
+3dTcat -prefix single_timepoint pb00.$subj.tcat+orig'[1]'
+
+# scaling
+    3dTstat -prefix rm.mean pb01.$subj.volreg+orig'[0..$]'
+    3dcalc -a pb01.$subj.volreg+orig -b rm.mean+orig		\
+           -expr 'min(200, a/b*100)*step(a)*step(b)'		\
+           -prefix pb02.$subj.scale
+
+
+# filtering & smoothing (ensure that cut-off frequency is suitable for your paradigm)
+3dTproject -input pb02.$subj.scale+orig -passband 0.0078 99999 -blur 0.3	\
+-prefix CleanedData
+
+# GLM analysis
+3dDeconvolve -input CleanedData+orig.HEAD	                      	\
+    -polort 0              	                                        \
+    -overwrite								\
+    -num_stimts 1                                                       \
+    -stim_times_AM1 1 $deconv_stim_times		  		\
+    'SPMG3(0.01)'                     	       			   	\
+    -stim_label 1 calcium                                               \
+    -iresp 1 HRF		                                       	\
+    -fout -tout -x1D XSPM.xmat.1D -xjpeg XSPM.jpg                       \
+    -TR_times 1								\
+    -fitts calcium_regressor                                            \
+    -bucket stats
